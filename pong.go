@@ -34,6 +34,29 @@ func (ball *ball) draw(pixels []byte) {
 	}
 }
 
+func (ball *ball) update(leftPaddle *paddle, rightPaddle *paddle) {
+	ball.x += ball.xv
+	ball.y += ball.yv
+
+	if int(ball.y)-ball.radius < 0 || int(ball.y)+ball.radius > winHeight {
+		ball.yv = -ball.yv
+	}
+	if ball.x < 0 || int(ball.x) > winWidth {
+		ball.x = 300
+		ball.y = 300
+	}
+	if int(ball.x) < int(leftPaddle.x)+leftPaddle.w/2 {
+		if int(ball.y) > int(leftPaddle.y)-leftPaddle.h/2 && int(ball.y) < int(leftPaddle.y)+leftPaddle.h/2 {
+			ball.xv = -ball.xv
+		}
+	}
+	if int(ball.x) > int(rightPaddle.x)-rightPaddle.w/2 {
+		if int(ball.y) > int(rightPaddle.y)-rightPaddle.h/2 && int(ball.y) < int(rightPaddle.y)+rightPaddle.h/2 {
+			ball.xv = -ball.xv
+		}
+	}
+}
+
 type paddle struct {
 	pos
 	w      int
@@ -49,6 +72,25 @@ func (paddle *paddle) draw(pixels []byte) {
 		for x := 0; x < paddle.w; x++ {
 			setPixel(startX+x, startY+y, paddle.colour, pixels)
 		}
+	}
+}
+
+func (paddle *paddle) update(keyState []uint8) {
+	if keyState[sdl.SCANCODE_UP] != 0 {
+		paddle.y -= 5
+	}
+	if keyState[sdl.SCANCODE_DOWN] != 0 {
+		paddle.y += 5
+	}
+}
+
+func (paddle *paddle) aiUpdate(ball *ball) {
+	paddle.y = ball.y
+}
+
+func clear(pixels []byte) {
+	for i := range pixels {
+		pixels[i] = 0
 	}
 }
 
@@ -91,8 +133,10 @@ func main() {
 	defer tex.Destroy()
 
 	pixels := make([]byte, winWidth*winHeight*4)
-	player1 := paddle{pos{100, 100}, 20, 100, colour{255, 255, 255}}
-	ball := ball{pos{300, 300}, 20, 0, 0, colour{255, 255, 255}}
+	player1 := paddle{pos{50, 100}, 20, 100, colour{255, 255, 255}}
+	player2 := paddle{pos{float32(winWidth) - 50, 100}, 20, 100, colour{255, 255, 255}}
+	ball := ball{pos{300, 300}, 20, 2, 2, colour{255, 255, 255}}
+	keyState := sdl.GetKeyboardState()
 
 	for {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -101,7 +145,14 @@ func main() {
 				return
 			}
 		}
+		clear(pixels)
+
+		player1.update(keyState)
+		player2.aiUpdate(&ball)
+		ball.update(&player1, &player2)
+
 		player1.draw(pixels)
+		player2.draw(pixels)
 		ball.draw(pixels)
 
 		tex.Update(nil, pixels, winWidth*4)
@@ -110,5 +161,3 @@ func main() {
 		sdl.Delay(16)
 	}
 }
-
-///// 26:00 @ 7
